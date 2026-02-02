@@ -1,0 +1,222 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+formatters:
+  enable:
+    - gofmt         # Check formatting
+    - goimports     # Check import formatting/sorting (like isort)
+    - gci           # Import ordering (like isort)
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(goaio)
+      custom-order: true
+
+linters:
+  default: none
+  enable:
+    # Default linters
+    - errcheck      # Check for unchecked errors
+    - govet         # Go vet examines Go source code
+    - ineffassign   # Detects ineffectual assignments
+    - staticcheck   # Comprehensive static analysis (includes gosimple, stylecheck)
+    - unused        # Check for unused code
+
+    # Style & Formatting
+    - whitespace    # Check for unnecessary whitespace
+    - revive        # Extensible linter with naming/style rules (like pep8-naming)
+
+    # Complexity
+    - gocyclo       # Cyclomatic complexity (like mccabe)
+    - gocognit      # Cognitive complexity
+    - nestif        # Deeply nested if statements
+    - cyclop        # Function/package cyclomatic complexity
+
+    # Bugs & Error Handling
+    - gocritic      # Opinionated linter (like flake8-bugbear)
+    - nilerr        # Check nil error returns
+    - errname       # Error naming conventions
+    - errorlint     # Error wrapping checks
+    - wrapcheck     # Check error wrapping
+    - err113        # Error handling expressions
+
+    # Security (like flake8-bandit)
+    - gosec         # Security checks
+
+    # Performance (like perflint)
+    - prealloc      # Slice preallocation
+    - perfsprint    # fmt.Sprintf optimization
+
+    # Code Quality
+    - unconvert     # Unnecessary type conversions
+    - unparam       # Unused function parameters (like flake8-unused-arguments)
+    - nakedret      # Naked returns in long functions
+    - noctx         # HTTP requests without context
+    - bodyclose     # HTTP response body close
+    - dupl          # Code duplication
+    - copyloopvar   # Loop variable capture
+    - durationcheck # Time duration multiplication
+    - intrange      # Integer range loops
+
+    # Testing (like flake8-pytest-style)
+    - tparallel     # Test parallelization
+    - thelper       # Test helper functions
+    - testableexamples # Testable examples
+
+    # Comments & Documentation
+    - godot         # Check comment ending with period
+    - misspell      # Spelling mistakes
+    - godoclint     # Documentation practice checks
+
+    # Imports
+    - depguard      # Dependency guards
+    - importas      # Import aliasing consistency
+
+    # Additional checks
+    - asasalint     # Pass []any to any
+    - bidichk       # Dangerous unicode characters
+    - contextcheck  # Context propagation
+    - decorder      # Declaration order
+    - dogsled       # Blank identifier assignments
+    - exhaustive    # Enum switch exhaustiveness
+    - forbidigo     # Forbidden identifiers (like flake8-print)
+    - goconst       # Repeated strings to constants
+    - gomoddirectives # go.mod directives
+    - goprintffuncname # Printf-like functions
+    - makezero      # Slice initialization
+    - nilnil        # Return nil, nil
+    - nolintlint    # Nolint directive validation
+    - predeclared   # Predeclared identifier shadowing
+    - reassign      # Package variable reassignment
+    - rowserrcheck  # SQL rows.Err check
+    - sqlclosecheck # SQL rows/stmt close
+    - tagalign      # Struct tag alignment
+    - usestdlibvars # Use stdlib vars
+    - wastedassign  # Wasted assignments
+    - zerologlint   # Zerolog usage
+
+  settings:
+    # Cyclomatic complexity threshold
+    gocyclo:
+      min-complexity: 15
+
+    # Cognitive complexity threshold
+    gocognit:
+      min-complexity: 20
+
+    # Cyclop complexity
+    cyclop:
+      max-complexity: 15
+
+    # Revive configuration (comprehensive linting)
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: var-declaration
+        - name: package-comments
+          disabled: true  # Disable for small projects
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+
+    # Gocritic (like flake8-bugbear)
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+        - experimental
+        - opinionated
+      disabled-checks:
+        - hugeParam  # Can be noisy for some codebases
+
+    # Security checks (like bandit)
+    gosec:
+      severity: medium
+      confidence: medium
+
+    # Error checking
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    # Naked returns
+    nakedret:
+      max-func-lines: 30
+
+    # Nesting depth
+    nestif:
+      min-complexity: 4
+
+    # Misspell
+    misspell:
+      locale: US
+
+    # Forbidden patterns (like flake8-print)
+    forbidigo:
+      forbid:
+        - pattern: 'fmt\.Print.*'
+          msg: "Use structured logging instead of fmt.Print"
+
+    # Depguard for import restrictions
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: "io/ioutil"
+              desc: "Deprecated: use io and os packages instead"
+
+    # Duplicate code detection
+    dupl:
+      threshold: 100
+
+issues:
+  # Maximum issues per linter (0 = unlimited)
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  # Fix issues automatically where possible (like fix = true)
+  fix: true
+
+  exclude-rules:
+    # Exclude some linters from running on tests
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        - forbidigo
+
+    # Exclude some linters from main.go
+    - path: main\.go
+      linters:
+        - forbidigo  # Allow fmt.Print in main
+
+output:
+  formats:
+    text:
+      print-issued-lines: true
+      print-linter-name: true
+  sort-results: true
