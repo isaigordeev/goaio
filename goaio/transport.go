@@ -2,9 +2,14 @@ package goaio
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
+	"sync"
+
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 )
 
 type Transport interface {
@@ -23,6 +28,11 @@ type nopCloserWriter struct {
 	io.Writer
 }
 
+type msgOrErr struct {
+	msg jsonrpc.RawMessage
+	err error
+}
+
 func (nopCloserWriter) Close() error {
 	return nil
 }
@@ -32,19 +42,21 @@ type ioConn struct {
 
 	rwc io.ReadWriteCloser // stream for data
 
-	incoming <-chan msgOrErr
-}
+	incoming <-chan msgOrErr // incoming msg
 
-type msgOrErr struct {
-}
+	outgoingBatch []jsonrpc.Message // batching requests
 
-func newIOConn(rwc io.ReadWriteCloser) *ioConn {
-	return &ioConn{}
+	queue []jsonrpc.Message // unread from the last batch
+
+	closedOnce sync.Once
+	closed     chan struct{}
+	closedErr  error
 }
 
 func (c *ioConn) Close() error {
 	return nil
 }
+
 func (c *ioConn) Write() {
 }
 
@@ -78,4 +90,44 @@ func (r rwc) Close() error {
 // Connect implements the [Transport] interface.
 func (*StdioTransport) Connect(context.Context) (Connection, error) {
 	return newIOConn(rwc{os.Stdin, nopCloserWriter{os.Stdout}}), nil
+}
+
+func newIOConn(rwc io.ReadWriteCloser) *ioConn {
+	var (
+		incoming = make(chan msgOrErr)
+		closed   = make(chan (struct{}))
+	)
+
+	go func() {
+		var raw json.RawMessage
+		err := dec.Decode(&raw)
+		// If decoding was successful, check for trailing data at the end of the stream.
+		if err == nil {
+			// Read the next byte to check if there is trailing data.
+			var tr [1]byte
+			if n, readErr := dec.Buffered().Read(tr[:]); n > 0 {
+				// If read byte is not a newline, it is an error.
+				// Support both Unix (\n) and Windows (\r\n) line endings.
+				if tr[0] != '\n' && tr[0] != '\r' {
+					err = fmt.Errorf("invalid trailing data at the end of stream")
+				}
+			} else if readErr != nil && readErr != io.EOF {
+				err = readErr
+			}
+		}
+		select {
+		case incoming <- msgOrErr{msg: raw, err: err}:
+		case <-closed:
+			return
+		}
+		if err != nil {
+			return
+		}
+	}()
+
+	return &ioConn{
+		rwc:      rwc,
+		incoming: incoming,
+		closed:   closed,
+	}
 }
